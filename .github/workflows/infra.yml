@@ -1,0 +1,50 @@
+name: Infraestructura Vercel con Terraform
+on:
+  pull_request:
+    paths: ['terraform/**']
+  workflow_dispatch:
+    inputs:
+      apply:
+        type: boolean
+        default: false
+        description: Aplicar configuración al proyecto Vercel existente
+permissions:
+  contents: read
+concurrency:
+  group: terraform-production
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.3
+      - run: terraform -chdir=terraform fmt -check
+      - run: terraform -chdir=terraform init
+      - run: terraform -chdir=terraform validate
+  provision:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.3
+      - run: terraform -chdir=terraform init
+      - run: terraform -chdir=terraform plan -out=tfplan
+      - if: inputs.apply
+        run: terraform -chdir=terraform apply -auto-approve tfplan
+      - if: inputs.apply
+        run: terraform -chdir=terraform output -json > terraform/infrastructure-outputs.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terraform-outputs
+          path: terraform/infrastructure-outputs.json
+          retention-days: 7
