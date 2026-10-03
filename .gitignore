@@ -43,3 +43,8 @@ terraform/*.tfvars
 
 .vercel
 .env*
+!.env.example
+/.scannerwork/
+/sonar-proyecto.png
+/sonar-measures.json
+/terraform/tfplan

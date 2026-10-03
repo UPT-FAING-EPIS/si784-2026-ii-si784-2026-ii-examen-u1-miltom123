@@ -1,0 +1,10 @@
+const {existsSync,readFileSync}=require('node:fs');
+const {randomUUID}=require('node:crypto');
+const bcrypt=require('bcryptjs');
+const {Pool}=require('pg');
+if(existsSync('.env.local'))process.loadEnvFile('.env.local');
+const url=new URL('postgresql://postgres.vjsrxkfviackpkiyvgai@aws-0-ca-central-1.pooler.supabase.com:6543/postgres');url.password=process.env.SUPABASE_DB_PASSWORD;
+const email=process.env.APP_BOOTSTRAP_EMAIL,password=process.env.APP_BOOTSTRAP_PASSWORD;
+if(!email||!password||password.length<10)throw new Error('Configure email y contraseña del usuario solicitado');
+const pool=new Pool({connectionString:process.env.DATABASE_URL||url.toString(),max:1,ssl:{rejectUnauthorized:true,ca:readFileSync('database/supabase-ca.crt','utf8')}});
+(async()=>{const client=await pool.connect();try{await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(812531)');const exists=await client.query('SELECT id FROM betsport.users WHERE email=$1',[email]);if(exists.rowCount){console.log('La cuenta solicitada ya existe. No se modificó su contraseña.');await client.query('ROLLBACK');return;}const count=await client.query('SELECT count(*)::int AS count FROM betsport.users');const now=new Date().toISOString();const u={id:randomUUID(),name:'Milton H Flores Chino',email,password:await bcrypt.hash(password,12),role:count.rows[0].count===0?'admin':'bettor',balance:0,currency:'USD',createdAt:now,updatedAt:now};await client.query('INSERT INTO betsport.users(id,email,role,balance_cents,data) VALUES($1,$2,$3,0,$4)',[u.id,u.email,u.role,JSON.stringify(u)]);await client.query('UPDATE public.betsport_updates SET version=version+1 WHERE id=1');await client.query('COMMIT');console.log(`Cuenta solicitada creada: ${email}, rol ${u.role}, saldo cero.`);}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}})().catch(error=>{console.error(error.message);process.exitCode=1;}).finally(()=>pool.end());

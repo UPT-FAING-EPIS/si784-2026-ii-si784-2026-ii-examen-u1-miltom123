@@ -1,21 +1,8 @@
-variable "aws_region" {
+variable "team_id" {
   type    = string
-  default = "us-east-1"
+  default = "team_UxTRPx5pVJiWRGYdcBfgm1hl"
 }
-variable "app_name" {
+variable "project_id" {
   type    = string
-  default = "betsport-pro"
-}
-variable "certificate_arn" {
-  type        = string
-  description = "Certificado ACM válido para el dominio en esta región"
-}
-variable "jwt_parameter_name" {
-  type        = string
-  default     = "/betsport/jwt-secret"
-  description = "SSM SecureString creado fuera de Terraform, mínimo 32 caracteres"
-}
-variable "instance_type" {
-  type    = string
-  default = "t3.small"
+  default = "prj_dHDxiTXAdlmjWlkRMOxfQ9SluWhu"
 }

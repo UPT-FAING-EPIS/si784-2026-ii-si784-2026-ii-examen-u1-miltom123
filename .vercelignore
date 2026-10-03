@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.github
+.env*
+terraform
+coverage
+test-results
+data
+tests
+*.log
+scripts
+docs
+Dockerfile
+docker-compose.yml
+proyecto_aplicacion_apuestas_eventos_deportivos.md

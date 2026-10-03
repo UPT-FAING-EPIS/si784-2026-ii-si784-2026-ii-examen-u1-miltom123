@@ -1,16 +1,12 @@
 terraform {
-  required_version = ">= 1.10.0"
+  required_version = ">= 1.11.0"
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.0"
+    vercel = {
+      source  = "vercel/vercel"
+      version = "~> 5.17.0"
     }
   }
-  backend "s3" {}
 }
-provider "aws" {
-  region = var.aws_region
-  default_tags {
-    tags = { Project = var.app_name, ManagedBy = "Terraform" }
-  }
+provider "vercel" {
+  team = var.team_id
 }

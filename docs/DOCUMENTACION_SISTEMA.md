@@ -1,95 +1,118 @@
 # Documentación del sistema BetSport Pro
 
-Documento generado desde database/schema.sql y lib/types.ts. No depende de datos precargados.
+Generada determinísticamente desde database/postgres.sql y lib/types.ts. No requiere credenciales ni datos de negocio.
 
 ## Arquitectura y persistencia
 
-Next.js y React sirven la interfaz y la API REST. El servidor Node.js 24 agrega WebSockets en /ws. SQLite guarda usuarios, eventos, relaciones, apuestas, movimientos y notificaciones. Las tablas son STRICT y activan claves foráneas. WAL y BEGIN IMMEDIATE protegen las operaciones de saldo y liquidación. Los montos disponibles se almacenan en centavos enteros; las instantáneas JSON conservan el objeto utilizado por la API. Los índices y restricciones se muestran en el esquema SQL incluido al final.
+Next.js y React sirven la interfaz y API REST en Vercel con Node.js 24. PostgreSQL en Supabase conserva los datos de negocio en el esquema privado betsport. El pooler comparte conexiones TLS con certificado CA verificado. Las claves foráneas protegen las relaciones. Transacciones y pg_advisory_xact_lock serializan cambios de saldo y liquidación entre instancias. Los montos de saldo se guardan como centavos enteros; JSONB conserva las instantáneas del dominio.
 
-La base arranca vacía. El primer registro, elegido dentro de una transacción, es administrador; los siguientes son apostadores. Cada cuenta empieza con cero. Los movimientos son registros del proyecto personal y no invocan redes de pagos. Los cambios de eventos, cuotas y resultados provienen del administrador. No hay fluctuaciones aleatorias.
+La base comienza sin eventos, cuotas, apuestas, movimientos ni promociones. El primer registro es administrador y cada cuenta empieza con cero. La cuenta solicitada se crea explícitamente con scripts/create-user.cjs y variables privadas. Los movimientos pertenecen al proyecto personal y no ejecutan pagos externos.
+
+Supabase Realtime publica mediante WebSocket únicamente la revisión de cambios de public.betsport_updates, con RLS de solo lectura. La interfaz consulta nuevamente la API autorizada. Recuperación mediante consultas cada 15 segundos. No hay cambios aleatorios ni proveedores simulados.
 
 ## Diccionario físico de datos
 
+
 ### balance_references
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | reference | TEXT | Sí | PK |
 | user_id | TEXT | Sí | FK |
+| created_order | BIGSERIAL | No |  |
 
 ### bet_items
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | bet_id | TEXT | Sí | FK |
 | event_id | TEXT | Sí | FK |
 | outcome_id | TEXT | Sí | FK |
+| created_order | BIGSERIAL | No |  |
 
 ### bets
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | user_id | TEXT | Sí | FK |
-| data | TEXT | Sí |  |
+| data | JSONB | Sí |  |
+| created_order | BIGSERIAL | No |  |
+
+### betsport_updates
+
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
+|---|---|---|---|
+| id | INTEGER | Sí | PK |
+| version | BIGINT | Sí |  |
+| updated_at | TIMESTAMPTZ | Sí |  |
 
 ### events
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
-| data | TEXT | Sí |  |
+| data | JSONB | Sí |  |
+| created_order | BIGSERIAL | No |  |
 
 ### markets
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | event_id | TEXT | Sí | FK |
+| created_order | BIGSERIAL | No |  |
 
 ### notifications
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | user_id | TEXT | No | FK |
-| data | TEXT | Sí |  |
+| data | JSONB | Sí |  |
+| created_order | BIGSERIAL | No |  |
 
 ### outcomes
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | market_id | TEXT | Sí | FK |
+| created_order | BIGSERIAL | No |  |
 
 ### transactions
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | user_id | TEXT | Sí | FK |
 | reference_id | TEXT | Sí |  |
-| data | TEXT | Sí |  |
+| data | JSONB | Sí |  |
+| created_order | BIGSERIAL | No |  |
 
 ### users
 
-| Columna | Tipo | Obligatoria | Clave |
+| Columna | Tipo PostgreSQL | Obligatoria | Clave |
 |---|---|---|---|
 | id | TEXT | Sí | PK |
 | email | TEXT | Sí |  |
 | role | TEXT | Sí |  |
-| balance_cents | INTEGER | Sí |  |
-| data | TEXT | Sí |  |
+| balance_cents | BIGINT | Sí |  |
+| data | JSONB | Sí |  |
+| created_order | BIGSERIAL | No |  |
 
-Los campos data contienen JSON validado con json_valid. Sus estructuras se detallan abajo: users usa User; events usa SportEvent con mercados y selecciones; bets usa Bet; transactions usa Transaction; notifications usa NotificationItem. Los IDs de mercados, selecciones e ítems se conservan además en tablas relacionadas para las claves foráneas. Las referencias de depósitos y retiros son únicas globalmente y evitan repetir una operación.
+
+Las tablas users, events, markets, outcomes, bets, bet_items, transactions, balance_references y notifications viven en betsport. betsport_updates es la única tabla pública y contiene metadatos de revisión. Las referencias de movimientos son únicas; JSONB contiene los objetos definidos abajo.
 
 ## Diccionario de objetos JSON
 
-### Objeto User
+
+### User
 
 ```typescript
-id: string;
+export interface User {
+  id: string;
   name: string;
   email: string;
   password?: string;
@@ -98,12 +121,14 @@ id: string;
   currency: string;
   createdAt: string;
   updatedAt: string;
+}
 ```
 
-### Objeto Outcome
+### Outcome
 
 ```typescript
-id: string;
+export interface Outcome {
+  id: string;
   marketId: string;
   name: string; // ej: "Real Madrid", "Empate", "Manchester City", "Más de 2.5", "Menos de 2.5"
   odds: number; // Decimal: ej 1.85
@@ -111,23 +136,27 @@ id: string;
   trend?: "up" | "down" | "same";
   isWinner?: boolean | null;
   status: "OPEN" | "SUSPENDED" | "SETTLED";
+}
 ```
 
-### Objeto Market
+### Market
 
 ```typescript
-id: string;
+export interface Market {
+  id: string;
   eventId: string;
   name: string; // ej: "Ganador del Partido (1X2)", "Total de Goles (Over/Under 2.5)", "Ambos Equipos Anotan"
   type: "1X2" | "TOTALS" | "BTTS" | "HANDICAP" | "MONEYLINE" | "SCORE";
   status: "ACTIVE" | "SUSPENDED" | "CLOSED";
   outcomes: Outcome[];
+}
 ```
 
-### Objeto SportEvent
+### SportEvent
 
 ```typescript
-id: string;
+export interface SportEvent {
+  id: string;
   sport: SportType;
   league: string;
   homeTeam: string;
@@ -140,12 +169,14 @@ id: string;
   stadium?: string;
   markets: Market[];
   isFeatured?: boolean;
+}
 ```
 
-### Objeto BetItem
+### BetItem
 
 ```typescript
-id: string;
+export interface BetItem {
+  id: string;
   betId: string;
   eventId: string;
   eventName: string;
@@ -155,12 +186,14 @@ id: string;
   outcomeName: string;
   odds: number;
   status: "PENDING" | "WON" | "LOST";
+}
 ```
 
-### Objeto Bet
+### Bet
 
 ```typescript
-id: string;
+export interface Bet {
+  id: string;
   userId: string;
   userName: string;
   type: BetType;
@@ -171,12 +204,14 @@ id: string;
   createdAt: string;
   settledAt?: string | null;
   items: BetItem[];
+}
 ```
 
-### Objeto Transaction
+### Transaction
 
 ```typescript
-id: string;
+export interface Transaction {
+  id: string;
   userId: string;
   type: TransactionType;
   amount: number;
@@ -187,22 +222,26 @@ id: string;
   status: TransactionStatus;
   description: string;
   createdAt: string;
+}
 ```
 
-### Objeto ReportFilter
+### ReportFilter
 
 ```typescript
-startDate?: string;
+export interface ReportFilter {
+  startDate?: string;
   endDate?: string;
   userId?: string;
   sport?: string;
   status?: string;
+}
 ```
 
-### Objeto ReportMetrics
+### ReportMetrics
 
 ```typescript
-generatedAt: string;
+export interface ReportMetrics {
+  generatedAt: string;
   generatedBy: string;
   filter: ReportFilter;
   totalBets: number;
@@ -224,172 +263,329 @@ generatedAt: string;
   }[];
   recentBets: Bet[];
   recentTransactions: Transaction[];
+}
 ```
 
-### Objeto NotificationItem
+### NotificationItem
 
 ```typescript
-id: string;
+export interface NotificationItem {
+  id: string;
   userId?: string;
   title: string;
   message: string;
   type: "info" | "success" | "warning" | "odds_change";
   timestamp: string;
   read: boolean;
+}
 ```
 
+
 ## Diagrama entidad relación
+
 
 ```mermaid
 erDiagram
   balance_references {
     TEXT reference PK
     TEXT user_id FK
+    BIGSERIAL created_order
   }
   bet_items {
     TEXT id PK
     TEXT bet_id FK
     TEXT event_id FK
     TEXT outcome_id FK
+    BIGSERIAL created_order
   }
   bets {
     TEXT id PK
     TEXT user_id FK
-    TEXT data
+    JSONB data
+    BIGSERIAL created_order
+  }
+  betsport_updates {
+    INTEGER id PK
+    BIGINT version
+    TIMESTAMPTZ updated_at
   }
   events {
     TEXT id PK
-    TEXT data
+    JSONB data
+    BIGSERIAL created_order
   }
   markets {
     TEXT id PK
     TEXT event_id FK
+    BIGSERIAL created_order
   }
   notifications {
     TEXT id PK
     TEXT user_id FK
-    TEXT data
+    JSONB data
+    BIGSERIAL created_order
   }
   outcomes {
     TEXT id PK
     TEXT market_id FK
+    BIGSERIAL created_order
   }
   transactions {
     TEXT id PK
     TEXT user_id FK
     TEXT reference_id
-    TEXT data
+    JSONB data
+    BIGSERIAL created_order
   }
   users {
     TEXT id PK
     TEXT email
     TEXT role
-    INTEGER balance_cents
-    TEXT data
+    BIGINT balance_cents
+    JSONB data
+    BIGSERIAL created_order
   }
   users ||--o{ balance_references : "user_id"
-  outcomes ||--o{ bet_items : "outcome_id"
-  events ||--o{ bet_items : "event_id"
   bets ||--o{ bet_items : "bet_id"
+  events ||--o{ bet_items : "event_id"
+  outcomes ||--o{ bet_items : "outcome_id"
   users ||--o{ bets : "user_id"
   events ||--o{ markets : "event_id"
   users ||--o{ notifications : "user_id"
   markets ||--o{ outcomes : "market_id"
   users ||--o{ transactions : "user_id"
+
 ```
+
 
 ## Diagrama de clases
 
+
 ```mermaid
 classDiagram
-  class User
-  class Outcome
-  class Market
-  class SportEvent
-  class BetItem
-  class Bet
-  class Transaction
-  class ReportFilter
-  class ReportMetrics
-  class NotificationItem
+  class User {
+    id
+    name
+    email
+    password
+    role
+    balance
+    currency
+    createdAt
+    updatedAt
+  }
+  class Outcome {
+    id
+    marketId
+    name
+    odds
+    previousOdds
+    trend
+    isWinner
+    status
+  }
+  class Market {
+    id
+    eventId
+    name
+    type
+    status
+    outcomes
+  }
+  class SportEvent {
+    id
+    sport
+    league
+    homeTeam
+    awayTeam
+    homeScore
+    awayScore
+    status
+    startTime
+    minute
+    stadium
+    markets
+    isFeatured
+  }
+  class BetItem {
+    id
+    betId
+    eventId
+    eventName
+    marketId
+    marketName
+    outcomeId
+    outcomeName
+    odds
+    status
+  }
+  class Bet {
+    id
+    userId
+    userName
+    type
+    stake
+    totalOdds
+    potentialPayout
+    status
+    createdAt
+    settledAt
+    items
+  }
+  class Transaction {
+    id
+    userId
+    type
+    amount
+    balanceBefore
+    balanceAfter
+    referenceId
+    paymentMethod
+    status
+    description
+    createdAt
+  }
+  class ReportFilter {
+    startDate
+    endDate
+    userId
+    sport
+    status
+  }
+  class ReportMetrics {
+    generatedAt
+    generatedBy
+    filter
+    totalBets
+    totalStake
+    totalPayout
+    grossGamingRevenue
+    winRatePercentage
+    pendingBetsCount
+    wonBetsCount
+    lostBetsCount
+    totalDeposits
+    totalWithdrawals
+    netCashflow
+    sportBreakdown
+    recentBets
+    recentTransactions
+  }
+  class NotificationItem {
+    id
+    userId
+    title
+    message
+    type
+    timestamp
+    read
+  }
   SportEvent "1" *-- "many" Market
   Market "1" *-- "many" Outcome
   User "1" --> "many" Bet
   Bet "1" *-- "many" BetItem
   User "1" --> "many" Transaction
   User "1" --> "many" NotificationItem
-  ReportMetrics --> ReportFilter
+
 ```
+
 
 ## Diagrama de componentes
 
+
 ```mermaid
 flowchart LR
-  UI[React - catálogo y paneles] --> REST[Next.js API REST]
-  UI <--> WS[Node.js WebSocket /ws]
+  UI[React catálogo y paneles] --> REST[Next.js API REST]
+  UI <-->|WSS| RT[Supabase Realtime contador de cambios]
   REST --> AUTH[JWT cookie HttpOnly y roles actuales]
-  REST --> DOMAIN[Apuestas - saldo - liquidación - reportes]
-  AUTH --> SQL[(SQLite)]
-  DOMAIN --> SQL
-  WS --> SQL
-  ADMIN[Administrador] --> UI
+  REST --> DOMAIN[Apuestas saldo liquidación reportes]
+  AUTH --> PG[(PostgreSQL esquema privado)]
+  DOMAIN --> PG
+  PG --> RT
 ```
+
 
 ## Diagrama de despliegue
 
+
 ```mermaid
 flowchart TB
-  Browser[Navegador] -->|HTTPS y WSS| ALB[AWS ALB - certificado ACM]
-  ALB -->|HTTP y WS en red VPC| EC2[EC2 - Docker Node.js 24]
-  EC2 --> EBS[(EBS cifrado - SQLite persistente)]
-  ECR[ECR imagen versionada] --> EC2
-  GH[GitHub Actions - OIDC] --> TF[Terraform - estado S3 bloqueado]
-  TF --> ALB
-  TF --> EC2
-  GH --> ECR
-  GH --> SSM[SSM despliegue con healthcheck]
-  SSM --> EC2
-  SECRET[SSM SecureString JWT] --> EC2
-  Local[Navegador local] --> Node[Node.js localhost:3000]
-  Node --> File[(data/betsport.sqlite)]
+  Browser[Navegador] -->|HTTPS| VC[Vercel Next.js y API Node 24]
+  Browser <-->|WSS| RT[Supabase Realtime]
+  VC -->|TLS pooler| PG[(Supabase PostgreSQL esquema privado)]
+  PG -->|revisión pública sin datos personales| RT
+  GH[GitHub Actions] --> TF[Terraform proveedor Vercel]
+  TF --> VC
+  GH --> VC
+  GH --> IMG[Docker backend validado y escaneado]
+  Local[Navegador local] --> Node[Next.js localhost 3000]
+  Node -->|TLS| PG
 ```
+
 
 ## Reglas de negocio
 
-- Depósitos, retiros y apuestas: importe finito entre 1 y 10000 USD, máximo dos decimales. Saldo nunca negativo.
-- Apuestas: de 1 a 20 eventos distintos, mercados activos, selección abierta, cuota explícitamente aceptada vigente. Pre-partidos con fecha futura. Retorno máximo de 1000000 USD.
-- Liquidación: exactamente un ganador por mercado. La repetición no paga nuevamente. Una combinada ganadora espera todos los resultados; una selección perdedora la resuelve como perdida.
-- Cancelación: devuelve el importe completo de los boletos pendientes que contienen el evento, una sola vez.
-- Margen del reporte: importe de apuestas ganadas/perdidas menos premios. No incluye pendientes ni canceladas. Las combinadas se agrupan por el deporte del primer evento para no duplicar importes.
-- Promociones: mensajes creados por el administrador y difundidos a los usuarios, sin bonos automáticos.
+- Importes finitos entre 1 y 10000 USD, hasta dos decimales. Saldo nunca negativo.
+- Apuestas de 1 a 20 eventos distintos con mercados activos, selección abierta y cuota vigente aceptada. Pre-partidos futuros. Retorno máximo de 1000000 USD.
+- Liquidación con un ganador por mercado; las combinadas esperan todos los resultados ganadores y cualquier pérdida las resuelve como perdidas. Nunca se paga nuevamente una liquidación repetida.
+- Cancelar un evento devuelve una sola vez las apuestas pendientes relacionadas.
+- El margen de reportes incluye apuestas ganadas o perdidas menos premios, excluye pendientes y canceladas. Las combinadas se agrupan por el primer deporte.
+- Promociones creadas por el administrador, sin bonos automáticos.
 
 ## API y seguridad
 
-POST /api/auth/register, /api/auth/login y /api/auth/logout; GET /api/auth/me. JWT HS256 válido 8 horas, emisor y audiencia verificados. Cookie HttpOnly, SameSite Strict, Secure configurable en HTTPS. No hay secretos por defecto. Inicio de sesión limitado por correo (20 intentos por 15 minutos, por proceso).
+POST /api/auth/register, /api/auth/login y /api/auth/logout; GET /api/auth/me. JWT HS256 por 8 horas, emisor y audiencia verificados. Cookie HttpOnly, SameSite Strict, Secure en HTTPS. Sin secretos predeterminados. Límite de login por correo: 20 intentos por 15 minutos por proceso; no es un límite distribuido.
 
-GET /api/events, /api/events/{id}; POST /api/bets; GET /api/bets/{userId}; POST /api/balance/deposit y /api/balance/withdraw; GET /api/balance/{userId}; GET /api/notifications. Las rutas de cuenta comprueban identidad y propiedad; las mutaciones siempre usan al usuario autenticado.
+GET /api/events y /api/events/{id}; POST /api/bets; GET /api/bets/{userId}; POST /api/balance/deposit y /api/balance/withdraw; GET /api/balance/{userId}; GET /api/notifications. Las rutas de cuenta comprueban identidad y propiedad.
 
-POST /api/reports y GET /api/reports; POST, PUT y DELETE /api/admin/events; POST /api/admin/settle; GET y PUT /api/admin/users; GET /api/admin/stats; POST /api/admin/notifications. Requieren rol administrador vigente en base de datos. Las rutas REST solicitadas sin /api se conservan mediante rewrites. GET /api/events/live-feed solo consulta datos persistidos; /ws es el canal de cambios en tiempo real.
+POST y GET /api/reports; POST, PUT y DELETE /api/admin/events; POST /api/admin/settle; GET y PUT /api/admin/users; GET /api/admin/stats; POST /api/admin/notifications. Rol administrador vigente en la base. Las rutas sin /api solicitadas se conservan mediante rewrites.
 
-## Esquema SQL de origen
+## Infraestructura y automatizaciones
+
+infra.yml valida y aplica Terraform al proyecto Vercel existente mediante import. El proyecto se protege con prevent_destroy. Solo administra configuración del proyecto; los secretos se configuran privadamente en Vercel y no están en Terraform. El estado sin secretos se conserva como artefacto y cada ejecución importa el recurso existente.
+
+deploy.yml valida tipos, pruebas, dependencias, build, HTTP y contenedor; despliega por ejecución manual a producción. sonar.yml analiza el código y exige además cero bugs, vulnerabilidades y hotspots globales. snyk-semgrep.yml genera reportes de código, dependencias y contenedor, y falla cuando hay hallazgos o faltan credenciales. generase-documentation.yml genera este documento y verifica que esté actualizado.
+
+## Esquema PostgreSQL de origen
+
 
 ```sql
-CREATE TABLE IF NOT EXISTS users (
+BEGIN;
+CREATE SCHEMA IF NOT EXISTS betsport;
+REVOKE ALL ON SCHEMA betsport FROM PUBLIC, anon, authenticated;
+CREATE TABLE IF NOT EXISTS betsport.users (
   id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  email TEXT NOT NULL UNIQUE,
   role TEXT NOT NULL CHECK(role IN ('admin','bettor')),
-  balance_cents INTEGER NOT NULL DEFAULT 0 CHECK(balance_cents >= 0),
-  data TEXT NOT NULL CHECK(json_valid(data))
-) STRICT;
-CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, data TEXT NOT NULL CHECK(json_valid(data))) STRICT;
-CREATE TABLE IF NOT EXISTS markets (id TEXT PRIMARY KEY, event_id TEXT NOT NULL REFERENCES events(id)) STRICT;
-CREATE TABLE IF NOT EXISTS outcomes (id TEXT PRIMARY KEY, market_id TEXT NOT NULL REFERENCES markets(id)) STRICT;
-CREATE TABLE IF NOT EXISTS bets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), data TEXT NOT NULL CHECK(json_valid(data))) STRICT;
-CREATE TABLE IF NOT EXISTS bet_items (id TEXT PRIMARY KEY, bet_id TEXT NOT NULL REFERENCES bets(id), event_id TEXT NOT NULL REFERENCES events(id), outcome_id TEXT NOT NULL REFERENCES outcomes(id)) STRICT;
-CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), reference_id TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data))) STRICT;
-CREATE TABLE IF NOT EXISTS balance_references (reference TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id)) STRICT;
-CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), data TEXT NOT NULL CHECK(json_valid(data))) STRICT;
-CREATE INDEX IF NOT EXISTS bets_user ON bets(user_id);
-CREATE INDEX IF NOT EXISTS transactions_user ON transactions(user_id);
-CREATE INDEX IF NOT EXISTS items_event ON bet_items(event_id);
+  balance_cents BIGINT NOT NULL DEFAULT 0 CHECK(balance_cents >= 0),
+  data JSONB NOT NULL,
+  created_order BIGSERIAL UNIQUE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower ON betsport.users(lower(email));
+CREATE TABLE IF NOT EXISTS betsport.events (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.markets (id TEXT PRIMARY KEY, event_id TEXT NOT NULL REFERENCES betsport.events(id), created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.outcomes (id TEXT PRIMARY KEY, market_id TEXT NOT NULL REFERENCES betsport.markets(id), created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.bets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES betsport.users(id), data JSONB NOT NULL, created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.bet_items (id TEXT PRIMARY KEY, bet_id TEXT NOT NULL REFERENCES betsport.bets(id), event_id TEXT NOT NULL REFERENCES betsport.events(id), outcome_id TEXT NOT NULL REFERENCES betsport.outcomes(id), created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES betsport.users(id), reference_id TEXT NOT NULL, data JSONB NOT NULL, created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.balance_references (reference TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES betsport.users(id), created_order BIGSERIAL UNIQUE);
+CREATE TABLE IF NOT EXISTS betsport.notifications (id TEXT PRIMARY KEY, user_id TEXT REFERENCES betsport.users(id), data JSONB NOT NULL, created_order BIGSERIAL UNIQUE);
+CREATE INDEX IF NOT EXISTS bets_user ON betsport.bets(user_id);
+CREATE INDEX IF NOT EXISTS transactions_user ON betsport.transactions(user_id);
+CREATE INDEX IF NOT EXISTS items_event ON betsport.bet_items(event_id);
+-- Only a revision signal is public. User data and password hashes stay private.
+CREATE TABLE IF NOT EXISTS public.betsport_updates (id INTEGER PRIMARY KEY CHECK(id=1), version BIGINT NOT NULL DEFAULT 0, updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
+INSERT INTO public.betsport_updates(id) VALUES (1) ON CONFLICT DO NOTHING;
+ALTER TABLE public.betsport_updates ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.betsport_updates FROM anon, authenticated;
+GRANT SELECT ON public.betsport_updates TO anon, authenticated;
+DROP POLICY IF EXISTS betsport_revision_read ON public.betsport_updates;
+CREATE POLICY betsport_revision_read ON public.betsport_updates FOR SELECT TO anon, authenticated USING (true);
+DO $$ BEGIN
+  IF EXISTS(SELECT 1 FROM pg_publication WHERE pubname='supabase_realtime') AND NOT EXISTS(SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='betsport_updates') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.betsport_updates;
+  END IF;
+END $$;
+COMMIT;
+
 ```

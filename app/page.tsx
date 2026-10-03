@@ -285,7 +285,11 @@ export default function SportsBettingApp() {
   return (
     <div className="application">
       <header className="topbar">
-        <button className="brand" onClick={() => setView("events")}>
+        <button
+          type="button"
+          className="brand"
+          onClick={() => setView("events")}
+        >
           <span className="brand-icon">
             <Trophy size={23} />
           </span>
@@ -296,6 +300,7 @@ export default function SportsBettingApp() {
         </button>
         <nav aria-label="Navegación principal">
           <button
+            type="button"
             className={view === "events" ? "nav-active" : ""}
             onClick={() => setView("events")}
           >
@@ -304,15 +309,17 @@ export default function SportsBettingApp() {
           {user && (
             <>
               <button
+                type="button"
                 className={view === "account" ? "nav-active" : ""}
                 onClick={() => {
                   setView("account");
-                  run(() => refreshAccount(user.id));
+                  void run(() => refreshAccount(user.id));
                 }}
               >
                 Mi cuenta
               </button>
               <button
+                type="button"
                 className={view === "notifications" ? "nav-active" : ""}
                 onClick={() => setView("notifications")}
               >
@@ -325,6 +332,7 @@ export default function SportsBettingApp() {
           )}
           {user?.role === "admin" && (
             <button
+              type="button"
               className={view === "admin" ? "nav-active" : ""}
               onClick={() => setView("admin")}
             >
@@ -340,6 +348,7 @@ export default function SportsBettingApp() {
                 {currency(user.balance)}
               </span>
               <button
+                type="button"
                 title="Cerrar sesión"
                 aria-label="Cerrar sesión"
                 onClick={() =>
@@ -361,7 +370,11 @@ export default function SportsBettingApp() {
               </button>
             </>
           ) : (
-            <button className="primary" onClick={() => setView("auth")}>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => setView("auth")}
+            >
               Iniciar sesión
             </button>
           )}
@@ -374,7 +387,11 @@ export default function SportsBettingApp() {
             role="status"
           >
             {notice.text}
-            <button aria-label="Cerrar aviso" onClick={() => setNotice(null)}>
+            <button
+              type="button"
+              aria-label="Cerrar aviso"
+              onClick={() => setNotice(null)}
+            >
               ×
             </button>
           </div>
@@ -481,6 +498,7 @@ export default function SportsBettingApp() {
                     </p>
                     {!user && (
                       <button
+                        type="button"
                         className="primary"
                         onClick={() => {
                           setRegister(true);
@@ -528,6 +546,7 @@ export default function SportsBettingApp() {
                             <div className="outcomes">
                               {m.outcomes.map((o) => (
                                 <button
+                                  type="button"
                                   key={o.id}
                                   disabled={
                                     busy ||
@@ -579,6 +598,7 @@ export default function SportsBettingApp() {
                             <strong>Cuota {s.odds.toFixed(2)}</strong>
                           </span>
                           <button
+                            type="button"
                             aria-label="Quitar selección"
                             onClick={() =>
                               setSlip((prev) =>
@@ -611,6 +631,7 @@ export default function SportsBettingApp() {
                       <strong>{currency(Number(stake) * odds)}</strong>
                     </div>
                     <button
+                      type="button"
                       className="primary full"
                       disabled={
                         busy ||
@@ -641,7 +662,7 @@ export default function SportsBettingApp() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                run(() => auth(e.currentTarget));
+                void run(() => auth(e.currentTarget));
               }}
             >
               {register && (
@@ -680,11 +701,12 @@ export default function SportsBettingApp() {
               {register && (
                 <small className="muted">Usa al menos 10 caracteres.</small>
               )}
-              <button className="primary full" disabled={busy}>
+              <button type="submit" className="primary full" disabled={busy}>
                 {busy ? "Procesando…" : register ? "Crear cuenta" : "Ingresar"}
               </button>
             </form>
             <button
+              type="button"
               className="text-button"
               onClick={() => setRegister(!register)}
             >
@@ -751,7 +773,7 @@ export default function SportsBettingApp() {
                       e.preventDefault();
                       const form = e.currentTarget;
                       const f = new FormData(form);
-                      run(async () => {
+                      void run(async () => {
                         await api(`balance/${kind}`, "POST", {
                           amount: Number(f.get("amount")),
                           reference: f.get("reference"),
@@ -786,7 +808,7 @@ export default function SportsBettingApp() {
                       Referencia única de operación
                       <input name="reference" required maxLength={200} />
                     </label>
-                    <button className="primary" disabled={busy}>
+                    <button type="submit" className="primary" disabled={busy}>
                       Registrar {kind === "deposit" ? "depósito" : "retiro"}
                     </button>
                   </form>
@@ -927,7 +949,7 @@ export default function SportsBettingApp() {
                   e.preventDefault();
                   const form = e.currentTarget;
                   const f = new FormData(form);
-                  run(async () => {
+                  void run(async () => {
                     await api("admin/events", "POST", {
                       ...Object.fromEntries(f),
                       startTime: new Date(
@@ -1118,7 +1140,7 @@ export default function SportsBettingApp() {
                   >
                     Añadir mercado
                   </button>
-                  <button className="primary" disabled={busy}>
+                  <button type="submit" className="primary" disabled={busy}>
                     Crear evento
                   </button>
                 </div>
@@ -1142,7 +1164,7 @@ export default function SportsBettingApp() {
                           onSubmit={(formEvent) => {
                             formEvent.preventDefault();
                             const f = new FormData(formEvent.currentTarget);
-                            run(async () => {
+                            void run(async () => {
                               await api("admin/events", "PUT", {
                                 eventId: e.id,
                                 updates: {
@@ -1201,7 +1223,9 @@ export default function SportsBettingApp() {
                               <option value="LIVE">En vivo</option>
                             </select>
                           </label>
-                          <button disabled={busy}>Actualizar marcador</button>
+                          <button type="submit" disabled={busy}>
+                            Actualizar marcador
+                          </button>
                         </form>
                         {e.markets.map((m) => (
                           <div key={m.id}>
@@ -1215,7 +1239,7 @@ export default function SportsBettingApp() {
                                     const f = new FormData(
                                       formEvent.currentTarget,
                                     );
-                                    run(async () => {
+                                    void run(async () => {
                                       await api("admin/events", "PUT", {
                                         eventId: e.id,
                                         outcomeUpdate: {
@@ -1241,7 +1265,9 @@ export default function SportsBettingApp() {
                                       required
                                     />
                                   </label>
-                                  <button disabled={busy}>Guardar cuota</button>
+                                  <button type="submit" disabled={busy}>
+                                    Guardar cuota
+                                  </button>
                                 </form>
                               ))}
                             </div>
@@ -1268,6 +1294,7 @@ export default function SportsBettingApp() {
                         ))}
                         <div className="actions">
                           <button
+                            type="button"
                             className="primary"
                             disabled={
                               busy || e.markets.some((m) => !winners[m.id])
@@ -1292,6 +1319,7 @@ export default function SportsBettingApp() {
                             Liquidar todos los mercados
                           </button>
                           <button
+                            type="button"
                             className="danger"
                             disabled={busy}
                             onClick={() =>
@@ -1342,7 +1370,7 @@ export default function SportsBettingApp() {
                             disabled={busy}
                             onChange={(e) => {
                               const role = e.target.value;
-                              run(async () => {
+                              void run(async () => {
                                 await api("admin/users", "PUT", {
                                   userId: u.id,
                                   role,
@@ -1370,7 +1398,7 @@ export default function SportsBettingApp() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   const f = new FormData(e.currentTarget);
-                  run(async () => {
+                  void run(async () => {
                     const filter = Object.fromEntries(
                       [...f.entries()].filter(([, v]) => v),
                     );
@@ -1421,7 +1449,7 @@ export default function SportsBettingApp() {
                     ))}
                   </select>
                 </label>
-                <button className="primary" disabled={busy}>
+                <button type="submit" className="primary" disabled={busy}>
                   Generar reporte
                 </button>
               </form>
@@ -1464,6 +1492,7 @@ export default function SportsBettingApp() {
                     </p>
                   ))}
                   <button
+                    type="button"
                     onClick={() => {
                       const url = URL.createObjectURL(
                         new Blob([JSON.stringify(report, null, 2)], {
@@ -1489,7 +1518,7 @@ export default function SportsBettingApp() {
                   e.preventDefault();
                   const form = e.currentTarget;
                   const f = new FormData(form);
-                  run(async () => {
+                  void run(async () => {
                     await api(
                       "admin/notifications",
                       "POST",
@@ -1508,7 +1537,7 @@ export default function SportsBettingApp() {
                   Mensaje
                   <textarea name="message" maxLength={1000} required />
                 </label>
-                <button className="primary" disabled={busy}>
+                <button type="submit" className="primary" disabled={busy}>
                   Publicar aviso
                 </button>
               </form>
