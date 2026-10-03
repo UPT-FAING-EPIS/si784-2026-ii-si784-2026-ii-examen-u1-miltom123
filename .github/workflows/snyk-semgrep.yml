@@ -1,0 +1,52 @@
+name: Snyk Semgrep y contenedor
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install semgrep
+      - run: semgrep scan --config=p/javascript --config=p/typescript --config=p/secrets --error --json --output=semgrep-report.json app lib scripts
+      - run: npm install --global snyk
+      - run: snyk test --json-file-output=snyk-dependencies.json
+        if: ${{ env.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - run: snyk code test --json-file-output=snyk-code.json
+        if: ${{ env.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - run: docker build -t betsport-backend:scan .
+      - run: snyk container test betsport-backend:scan --file=Dockerfile --json-file-output=snyk-container.json
+        if: ${{ env.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Avisar si falta Snyk
+        if: ${{ env.SNYK_TOKEN == '' }}
+        run: echo 'SNYK_TOKEN no configurado; se ejecutaron npm audit y Semgrep. Configure el secreto para activar Snyk.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: seguridad-evidencia
+          path: |
+            semgrep-report.json
+            snyk-dependencies.json
+            snyk-code.json
+            snyk-container.json
