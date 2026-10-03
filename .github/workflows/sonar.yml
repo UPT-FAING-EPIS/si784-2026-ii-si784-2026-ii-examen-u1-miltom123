@@ -1,0 +1,43 @@
+name: SonarQube y puerta de calidad
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:coverage
+      - uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >-
+            -Dsonar.projectKey=miltom123_betsport-pro-milton-flores
+            -Dsonar.organization=miltom123
+            -Dsonar.qualitygate.wait=true
+      - name: Exigir cero bugs vulnerabilidades y hotspots en todo el código
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_PROJECT_KEY: miltom123_betsport-pro-milton-flores
+        run: node scripts/check-sonar.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sonar-evidencia
+          path: |
+            coverage/lcov.info
+            sonar-measures.json
