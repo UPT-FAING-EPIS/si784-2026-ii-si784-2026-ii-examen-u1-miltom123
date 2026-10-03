@@ -1,0 +1,23 @@
+name: Documentación del esquema y diagramas Mermaid
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run generate:docs
+      - run: git diff --exit-code docs/DOCUMENTACION_SISTEMA.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentacion-mermaid
+          path: docs/DOCUMENTACION_SISTEMA.md
