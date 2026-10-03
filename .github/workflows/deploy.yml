@@ -1,0 +1,46 @@
+name: Validación y despliegue Vercel
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm audit --audit-level=low
+      - run: npm run build
+      - run: node scripts/smoke-test.cjs
+      - run: docker build -t betsport:validation .
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_UxTRPx5pVJiWRGYdcBfgm1hl
+      VERCEL_PROJECT_ID: prj_dHDxiTXAdlmjWlkRMOxfQ9SluWhu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npx --yes vercel@62.2.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - run: npx --yes vercel@62.2.0 deploy --prod --yes --token="$VERCEL_TOKEN" > deployment-url.txt
+      - run: curl --fail --retry 5 https://betsport-pro-milton-flores.vercel.app/api/health
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deployment-url
+          path: deployment-url.txt
