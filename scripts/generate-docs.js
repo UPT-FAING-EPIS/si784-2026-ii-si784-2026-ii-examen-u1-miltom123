@@ -40,7 +40,7 @@ for (const m of schema.matchAll(
     }),
   );
 }
-const tables = [...definitions.keys()].sort();
+const tables = [...definitions.keys()].sort((a, b) => a.localeCompare(b));
 let dictionary = "",
   relations = "";
 for (const table of tables) {
@@ -80,7 +80,7 @@ const tree = ts.createSourceFile(
   ts.ScriptTarget.Latest,
   true,
 );
-const fence = String.fromCharCode(96).repeat(3);
+const fence = String.fromCodePoint(96).repeat(3);
 function block(language, text) {
   return "\n" + fence + language + "\n" + text + "\n" + fence + "\n";
 }
@@ -149,7 +149,7 @@ const markdown = [
   "GET /api/events y /api/events/{id}; POST /api/bets; GET /api/bets/{userId}; POST /api/balance/deposit y /api/balance/withdraw; GET /api/balance/{userId}; GET /api/notifications. Las rutas de cuenta comprueban identidad y propiedad.",
   "POST y GET /api/reports; POST, PUT y DELETE /api/admin/events; POST /api/admin/settle; GET y PUT /api/admin/users; GET /api/admin/stats; POST /api/admin/notifications. Rol administrador vigente en la base. Las rutas sin /api solicitadas se conservan mediante rewrites.",
   "## Infraestructura y automatizaciones",
-  "infra.yml valida y aplica Terraform al proyecto Vercel existente mediante import. El proyecto se protege con prevent_destroy. Solo administra configuración del proyecto; los secretos se configuran privadamente en Vercel y no están en Terraform. El estado sin secretos se conserva como artefacto y cada ejecución importa el recurso existente.",
+  "infra.yml valida y aplica Terraform al proyecto Vercel existente mediante import. El proyecto se protege con prevent_destroy. Solo administra configuración del proyecto; los secretos se configuran privadamente en Vercel y no están en Terraform. Solo las salidas públicas se conservan como artefacto; cada ejecución importa el recurso existente.",
   "deploy.yml valida tipos, pruebas, dependencias, build, HTTP y contenedor; despliega por ejecución manual a producción. sonar.yml analiza el código y exige además cero bugs, vulnerabilidades y hotspots globales. snyk-semgrep.yml genera reportes de código, dependencias y contenedor, y falla cuando hay hallazgos o faltan credenciales. generase-documentation.yml genera este documento y verifica que esté actualizado.",
   "## Esquema PostgreSQL de origen",
   block("sql", schema),

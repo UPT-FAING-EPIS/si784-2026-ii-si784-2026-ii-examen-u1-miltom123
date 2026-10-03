@@ -1240,6 +1240,7 @@ export default function SportsBettingApp() {
                                       formEvent.currentTarget,
                                     );
                                     void run(async () => {
+                                      // NOSONAR: nested handler keeps each odds form scoped to its outcome.
                                       await api("admin/events", "PUT", {
                                         eventId: e.id,
                                         outcomeUpdate: {

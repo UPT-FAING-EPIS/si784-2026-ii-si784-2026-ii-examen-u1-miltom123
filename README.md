@@ -20,4 +20,10 @@ Proyecto Vercel: betsport-pro-milton-flores. Variables necesarias: JWT_SECRET, S
 
 Repositorio: https://github.com/UPT-FAING-EPIS/si784-2026-ii-si784-2026-ii-examen-u1-miltom123
 
-La documentación técnica y los diagramas Mermaid están en docs/DOCUMENTACION_SISTEMA.md. Los escaneos externos y la evidencia Sonar se completan después de la publicación, según la última instrucción del usuario.
+Aplicación: https://betsport-pro-milton-flores.vercel.app
+
+Sonar: https://sonarcloud.io/project/overview?id=miltom123_betsport-pro-milton-flores
+
+Documentación técnica y diagramas Mermaid: docs/DOCUMENTACION_SISTEMA.md. Los reportes de escaneo se generan como artefactos de GitHub Actions. Snyk requiere configurar SNYK_TOKEN en los secretos del repositorio.
+
+Docker: docker compose --env-file .env.local up --build. La imagen contiene el backend Next.js y usa PostgreSQL Supabase. Terraform adopta el proyecto Vercel publicado mediante import y prevent_destroy; infra.yml ejecuta el plan y la aplicación manual. Las credenciales de producción permanecen fuera del estado Terraform.
