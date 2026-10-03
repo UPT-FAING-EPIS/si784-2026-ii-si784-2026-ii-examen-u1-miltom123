@@ -5,6 +5,7 @@ const fs = require("node:fs");
     throw new Error("Configure proyecto y token Sonar");
   const url = new URL("/api/measures/component", host);
   url.searchParams.set("component", process.env.SONAR_PROJECT_KEY);
+  url.searchParams.set("branch", process.env.SONAR_BRANCH || "main");
   url.searchParams.set("metricKeys", "bugs,vulnerabilities,security_hotspots");
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${process.env.SONAR_TOKEN}` },
