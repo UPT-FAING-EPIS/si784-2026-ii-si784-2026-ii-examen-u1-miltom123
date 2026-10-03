@@ -1,0 +1,45 @@
+{
+  "name": "sistema-apuestas-deportivas-milton-flores",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma web de apuestas a eventos deportivos en tiempo real - Milton H Flores Chino",
+  "author": "Milton H Flores Chino",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "generate:docs": "node scripts/generate-docs.js",
+    "setup:local": "node scripts/setup-local.cjs",
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage",
+    "db:migrate": "node scripts/migrate-supabase.cjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.453.0",
+    "next": "^16.3.8",
+    "pg": "^8.23.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^24.19.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitest/coverage-v8": "^5.0.3",
+    "prettier": "^3.6.2",
+    "typescript": "^5.6.3",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  }
+}
